@@ -68,6 +68,7 @@ assistant = AssistantAgent(
     ),
     memory=[user_memory],
     tools=[retrieve_documents],
+    reflect_on_tool_use=True,
 )
 
 confirmation = AssistantAgent(

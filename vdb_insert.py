@@ -4,6 +4,8 @@ from dotenv import load_dotenv
 import fitz  # PyMuPDF
 import openai
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_experimental.text_splitter import SemanticChunker
+from langchain_openai.embeddings import OpenAIEmbeddings
 
 load_dotenv()
 
@@ -41,17 +43,23 @@ text_splitter = RecursiveCharacterTextSplitter(
     length_function=len,
     is_separator_regex=False,
 )
-chunks = text_splitter.split_text(pdf_text)
 
+semantic_chunker = SemanticChunker(OpenAIEmbeddings(), breakpoint_threshold_type="percentile",)
+documents = semantic_chunker.create_documents([pdf_text])
+# print(documents)
+chunks = text_splitter.split_text(pdf_text)
+# print("=======================================================")
+# print(chunks)
+# exit(0)
 # Generate embeddings for each chunk of text
 def generate_embeddings(chunks):
     embeddings = []
     try:
         # Loop through each chunk and generate embeddings
-        for chunk in chunks:
+        for chunk in documents:
             response = openai.embeddings.create(
                 model="text-embedding-3-small",  # Updated embedding model
-                input=chunk
+                input=chunk.page_content
             )
             # print(response.data[0].embedding)
             # break
@@ -67,7 +75,7 @@ print(f"Total chunks: {len(chunks)}")
 print(f"Total embeddings: {len(embeddings)}")
 
 # Insert the embeddings into Pinecone (along with metadata)
-vectors = [(str(i), embeddings[i], {'text': chunks[i]}) for i in range(len(chunks))]
+vectors = [(str(i), embeddings[i], {'text': documents[i].page_content}) for i in range(len(documents))]
 
 # Upsert vectors into Pinecone index
 index.upsert(vectors=vectors)
